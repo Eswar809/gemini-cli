@@ -256,6 +256,40 @@ describe('ReadManyFilesTool', () => {
     });
   });
 
+  describe('getDisplayTitle', () => {
+    it('should return the single pattern when only one is provided', () => {
+      const invocation = tool.build({ include: ['src/index.ts'] });
+      expect(invocation.getDisplayTitle()).toBe('src/index.ts');
+    });
+
+    it('should return comma-joined patterns when two patterns are provided', () => {
+      const invocation = tool.build({ include: ['src/foo.ts', 'src/bar.ts'] });
+      expect(invocation.getDisplayTitle()).toBe('src/foo.ts, src/bar.ts');
+    });
+
+    it('should show up to three patterns without truncation suffix', () => {
+      const invocation = tool.build({
+        include: ['a.ts', 'b.ts', 'c.ts'],
+      });
+      expect(invocation.getDisplayTitle()).toBe('a.ts, b.ts, c.ts');
+    });
+
+    it('should truncate and show count when more than three patterns are provided', () => {
+      const invocation = tool.build({
+        include: ['a.ts', 'b.ts', 'c.ts', 'd.ts', 'e.ts'],
+      });
+      expect(invocation.getDisplayTitle()).toBe('a.ts, b.ts, c.ts (+2 more)');
+    });
+
+    it('should not contain verbose prose from getDescription', () => {
+      const invocation = tool.build({ include: ['src/**/*.ts'] });
+      const title = invocation.getDisplayTitle();
+      expect(title).not.toContain('Will attempt to read');
+      expect(title).not.toContain('within target directory');
+      expect(title).toBe('src/**/*.ts');
+    });
+  });
+
   describe('execute', () => {
     const createFile = (filePath: string, content = '') => {
       const fullPath = path.join(tempRootDir, filePath);

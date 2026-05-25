@@ -136,6 +136,16 @@ class ReadManyFilesToolInvocation extends BaseToolInvocation<
     super(params, messageBus, _toolName, _toolDisplayName);
   }
 
+  override getDisplayTitle(): string {
+    const patterns = this.params.include;
+    if (patterns.length === 1) {
+      return patterns[0];
+    }
+    const shown = patterns.slice(0, 3);
+    const suffix = patterns.length > 3 ? ` (+${patterns.length - 3} more)` : '';
+    return shown.join(', ') + suffix;
+  }
+
   getDescription(): string {
     const pathDesc = `using patterns:
 ${this.params.include.join('`, `')}

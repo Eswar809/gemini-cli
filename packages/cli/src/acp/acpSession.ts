@@ -1382,11 +1382,16 @@ export class Session {
       try {
         const invocation = readManyFilesTool.build(toolArgs);
 
+        const displayTitle =
+          typeof invocation.getDisplayTitle === 'function'
+            ? invocation.getDisplayTitle()
+            : invocation.getDescription();
+
         await this.sendUpdate({
           sessionUpdate: 'tool_call',
           toolCallId: callId,
           status: 'in_progress',
-          title: invocation.getDescription(),
+          title: displayTitle,
           content: [],
           locations: invocation.toolLocations(),
           kind: toAcpToolKind(readManyFilesTool.kind),
@@ -1404,7 +1409,7 @@ export class Session {
           sessionUpdate: 'tool_call_update',
           toolCallId: callId,
           status: 'completed',
-          title: invocation.getDescription(),
+          title: displayTitle,
           content: content ? [content] : [],
           locations: invocation.toolLocations(),
           kind: toAcpToolKind(readManyFilesTool.kind),

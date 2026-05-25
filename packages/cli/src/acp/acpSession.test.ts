@@ -462,6 +462,63 @@ describe('Session', () => {
     );
   });
 
+  it('should use getDisplayTitle (not getDescription) for @path tool_call title', async () => {
+    (path.resolve as unknown as Mock).mockReturnValue('/tmp/file.txt');
+    (fs.stat as unknown as Mock).mockResolvedValue({
+      isDirectory: () => false,
+    });
+
+    const mockInvocation = {
+      getDescription: vi.fn().mockReturnValue('Will attempt to read and concatenate files using patterns...'),
+      getDisplayTitle: vi.fn().mockReturnValue('file.txt'),
+      toolLocations: vi.fn().mockReturnValue([]),
+      execute: vi.fn().mockResolvedValue({
+        llmContent: ['--- file.txt ---\n\nFile content\n\n'],
+      }),
+    };
+    (ReadManyFilesTool as unknown as Mock).mockImplementation(() => ({
+      name: 'read_many_files',
+      kind: 'read',
+      build: vi.fn().mockReturnValue(mockInvocation),
+    }));
+
+    const stream = createMockStream([
+      {
+        type: GeminiEventType.Content,
+        value: '',
+      },
+    ]);
+    mockSendMessageStream.mockReturnValue(stream);
+
+    await session.prompt({
+      sessionId: 'session-1',
+      prompt: [
+        { type: 'text', text: 'Read' },
+        {
+          type: 'resource_link',
+          uri: 'file://file.txt',
+          mimeType: 'text/plain',
+          name: 'file.txt',
+        },
+      ],
+    });
+
+    const updates = (mockConnection.sessionUpdate as unknown as Mock).mock.calls.map(
+      (call: [{ update: { sessionUpdate: string; title?: string } }]) => call[0].update,
+    );
+    const toolCallUpdates = updates.filter(
+      (u: { sessionUpdate: string }) =>
+        u.sessionUpdate === 'tool_call' || u.sessionUpdate === 'tool_call_update',
+    );
+    expect(toolCallUpdates.length).toBeGreaterThan(0);
+    for (const update of toolCallUpdates) {
+      expect((update as { title?: string }).title).toBe('file.txt');
+      expect((update as { title?: string }).title).not.toContain('Will attempt to read');
+    }
+    expect(mockInvocation.getDisplayTitle).toHaveBeenCalled();
+    expect(mockInvocation.getDescription).not.toHaveBeenCalled();
+  });
+
   it('should handle rate limit error', async () => {
     const error = new Error('Rate limit');
     const customError = error as { status?: number; message?: string };
