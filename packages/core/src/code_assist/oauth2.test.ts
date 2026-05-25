@@ -1526,6 +1526,117 @@ describe('oauth2', () => {
       });
     });
 
+    describe('cacheCredentials (via tokens event)', () => {
+      it('should preserve existing refresh_token when token refresh response omits it', async () => {
+        const credsPath = path.join(
+          tempHomeDir,
+          GEMINI_DIR,
+          'oauth_creds.json',
+        );
+        await fs.promises.mkdir(path.dirname(credsPath), { recursive: true });
+
+        // Simulate the initial credentials file written after the first login,
+        // which includes a refresh_token.
+        const initialCreds = {
+          access_token: 'old-access-token',
+          refresh_token: 'persistent-refresh-token',
+          expiry_date: Date.now() + 3600000,
+        };
+        await fs.promises.writeFile(credsPath, JSON.stringify(initialCreds));
+
+        // Capture the 'tokens' listener registered on the OAuth2 client.
+        let tokensListener:
+          | ((tokens: Credentials) => Promise<void>)
+          | undefined;
+        const mockOAuth2Client = {
+          setCredentials: vi.fn(),
+          getAccessToken: vi
+            .fn()
+            .mockResolvedValue({ token: 'old-access-token' }),
+          getTokenInfo: vi.fn().mockResolvedValue({}),
+          on: vi.fn((event: string, listener: unknown) => {
+            if (event === 'tokens') {
+              tokensListener = listener as (
+                tokens: Credentials,
+              ) => Promise<void>;
+            }
+          }),
+          credentials: initialCreds,
+        } as unknown as OAuth2Client;
+        vi.mocked(OAuth2Client).mockImplementation(() => mockOAuth2Client);
+
+        // Load the client so the 'tokens' listener is registered.
+        await getOauthClient(AuthType.LOGIN_WITH_GOOGLE, mockConfig);
+
+        // Simulate a token refresh response that omits the refresh_token
+        // (common with Google OAuth — the refresh_token is only issued once).
+        const refreshedTokens: Credentials = {
+          access_token: 'new-access-token',
+          expiry_date: Date.now() + 3600000,
+          // refresh_token intentionally absent
+        };
+        await tokensListener!(refreshedTokens);
+
+        // The cached file must retain the original refresh_token.
+        const saved = JSON.parse(
+          await fs.promises.readFile(credsPath, 'utf-8'),
+        ) as Credentials;
+        expect(saved.access_token).toBe('new-access-token');
+        expect(saved.refresh_token).toBe('persistent-refresh-token');
+      });
+
+      it('should use the new refresh_token when the token refresh response provides one', async () => {
+        const credsPath = path.join(
+          tempHomeDir,
+          GEMINI_DIR,
+          'oauth_creds.json',
+        );
+        await fs.promises.mkdir(path.dirname(credsPath), { recursive: true });
+
+        const initialCreds = {
+          access_token: 'old-access-token',
+          refresh_token: 'old-refresh-token',
+          expiry_date: Date.now() + 3600000,
+        };
+        await fs.promises.writeFile(credsPath, JSON.stringify(initialCreds));
+
+        let tokensListener:
+          | ((tokens: Credentials) => Promise<void>)
+          | undefined;
+        const mockOAuth2Client = {
+          setCredentials: vi.fn(),
+          getAccessToken: vi
+            .fn()
+            .mockResolvedValue({ token: 'old-access-token' }),
+          getTokenInfo: vi.fn().mockResolvedValue({}),
+          on: vi.fn((event: string, listener: unknown) => {
+            if (event === 'tokens') {
+              tokensListener = listener as (
+                tokens: Credentials,
+              ) => Promise<void>;
+            }
+          }),
+          credentials: initialCreds,
+        } as unknown as OAuth2Client;
+        vi.mocked(OAuth2Client).mockImplementation(() => mockOAuth2Client);
+
+        await getOauthClient(AuthType.LOGIN_WITH_GOOGLE, mockConfig);
+
+        const refreshedTokens: Credentials = {
+          access_token: 'new-access-token',
+          refresh_token: 'new-refresh-token',
+          expiry_date: Date.now() + 3600000,
+        };
+        await tokensListener!(refreshedTokens);
+
+        const saved = JSON.parse(
+          await fs.promises.readFile(credsPath, 'utf-8'),
+        ) as Credentials;
+        expect(saved.access_token).toBe('new-access-token');
+        expect(saved.refresh_token).toBe('new-refresh-token');
+      });
+    });
+
     describe('clearCachedCredentialFile', () => {
       it('should clear cached credentials and Google account', async () => {
         const cachedCreds = { refresh_token: 'test-token' };

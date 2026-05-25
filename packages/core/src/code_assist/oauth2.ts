@@ -761,7 +761,32 @@ async function cacheCredentials(credentials: Credentials) {
   const filePath = Storage.getOAuthCredsPath();
   await fs.mkdir(path.dirname(filePath), { recursive: true });
 
-  const credString = JSON.stringify(credentials, null, 2);
+  // Preserve the existing refresh_token when the new credentials omit it.
+  // Many OAuth providers (including Google) do not return a new refresh_token
+  // on every access-token refresh, expecting the client to keep the original.
+  let mergedCredentials = credentials;
+  if (!credentials.refresh_token) {
+    try {
+      const existing: unknown = JSON.parse(
+        await fs.readFile(filePath, 'utf-8'),
+      );
+      if (
+        typeof existing === 'object' &&
+        existing !== null &&
+        'refresh_token' in existing &&
+        typeof existing.refresh_token === 'string'
+      ) {
+        mergedCredentials = {
+          ...credentials,
+          refresh_token: existing.refresh_token,
+        };
+      }
+    } catch {
+      // File may not exist yet or be unreadable — proceed without merging.
+    }
+  }
+
+  const credString = JSON.stringify(mergedCredentials, null, 2);
   await fs.writeFile(filePath, credString, { mode: 0o600 });
   try {
     await fs.chmod(filePath, 0o600);
