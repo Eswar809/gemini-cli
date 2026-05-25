@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fdir } from 'fdir';
 import type { Ignore } from './ignore.js';
 import * as cache from './crawlCache.js';
+import { debugLogger } from '../debugLogger.js';
 
 export interface CrawlOptions {
   // The directory to start the crawl from.
@@ -90,6 +91,14 @@ export async function crawl(options: CrawlOptions): Promise<string[]> {
   const relativeToCwdResults = results.map((p) =>
     path.posix.join(relativeToCrawlDir, p),
   );
+
+  if (truncated) {
+    debugLogger.warn(
+      `File index for '${options.crawlDirectory}' was truncated at ${maxFiles} files. ` +
+        `Some files may not appear in @ completions. ` +
+        `Increase 'fileFiltering.maxFileCount' in settings to index more files.`,
+    );
+  }
 
   if (options.cache && !truncated) {
     const cacheKey = cache.getCacheKey(

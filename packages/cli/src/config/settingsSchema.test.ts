@@ -150,6 +150,14 @@ describe('SettingsSchema', () => {
         getSettingsSchema().context.properties.fileFiltering.properties
           ?.customIgnoreFilePaths.type,
       ).toBe('array');
+      expect(
+        getSettingsSchema().context.properties.fileFiltering.properties
+          ?.maxFileCount,
+      ).toBeDefined();
+      expect(
+        getSettingsSchema().context.properties.fileFiltering.properties
+          ?.maxFileCount.type,
+      ).toBe('number');
     });
 
     it('should have unique categories', () => {

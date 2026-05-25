@@ -1528,6 +1528,19 @@ const SETTINGS_SCHEMA = {
             description: 'Enable fuzzy search when searching for files.',
             showInDialog: true,
           },
+          maxFileCount: {
+            type: 'number',
+            label: 'Max File Count',
+            category: 'Context',
+            requiresRestart: true,
+            default: 20000,
+            description: oneLine`
+              Maximum number of files to index for @ file completion and search.
+              Increase this value if files in your project are not visible for
+              @-tagging despite not being ignored. The default is 20000.
+            `,
+            showInDialog: true,
+          },
           customIgnoreFilePaths: {
             type: 'array',
             label: 'Custom Ignore File Paths',

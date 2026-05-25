@@ -596,4 +596,61 @@ describe('crawler', () => {
     const files = paths.filter((p) => p !== '.' && !p.endsWith('/'));
     expect(files.length).toBe(2);
   });
+
+  it('should emit a debugLogger warning when the file index is truncated', async () => {
+    tmpDir = await createTmpDir({
+      'file1.js': '',
+      'file2.js': '',
+      'file3.js': '',
+    });
+
+    const service = new FileDiscoveryService(tmpDir, {
+      respectGitIgnore: false,
+      respectGeminiIgnore: false,
+    });
+    const ignore = loadIgnoreRules(service, []);
+
+    const { debugLogger } = await import('../../utils/debugLogger.js');
+    const warnSpy = vi.spyOn(debugLogger, 'warn');
+
+    await crawl({
+      crawlDirectory: tmpDir,
+      cwd: tmpDir,
+      ignore,
+      cache: false,
+      cacheTtl: 0,
+      maxFiles: 2,
+    });
+
+    expect(warnSpy).toHaveBeenCalledOnce();
+    expect(warnSpy.mock.calls[0][0]).toMatch(/truncated at 2 files/);
+    expect(warnSpy.mock.calls[0][0]).toMatch(/fileFiltering\.maxFileCount/);
+  });
+
+  it('should not emit a warning when the file count is within the limit', async () => {
+    tmpDir = await createTmpDir({
+      'file1.js': '',
+      'file2.js': '',
+    });
+
+    const service = new FileDiscoveryService(tmpDir, {
+      respectGitIgnore: false,
+      respectGeminiIgnore: false,
+    });
+    const ignore = loadIgnoreRules(service, []);
+
+    const { debugLogger } = await import('../../utils/debugLogger.js');
+    const warnSpy = vi.spyOn(debugLogger, 'warn');
+
+    await crawl({
+      crawlDirectory: tmpDir,
+      cwd: tmpDir,
+      ignore,
+      cache: false,
+      cacheTtl: 0,
+      maxFiles: 10,
+    });
+
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
 });
