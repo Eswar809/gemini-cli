@@ -327,5 +327,75 @@ describe('KeychainService', () => {
     it('getPassword should return null if key is missing', async () => {
       expect(await service.getPassword('missing')).toBeNull();
     });
+
+    describe('error sanitization', () => {
+      it('getPassword should throw a generic error and log only the message on native failure', async () => {
+        mockKeytar.getPassword?.mockRejectedValue(
+          new Error('Sensitive native detail: account=user@example.com'),
+        );
+
+        await expect(service.getPassword('acc')).rejects.toThrow(
+          'Keychain operation failed',
+        );
+        expect(debugLogger.debug).toHaveBeenCalledWith(
+          'Keychain getPassword encountered an error:',
+          'Sensitive native detail: account=user@example.com',
+        );
+      });
+
+      it('setPassword should throw a generic error and log only the message on native failure', async () => {
+        mockKeytar.setPassword?.mockRejectedValue(
+          new Error('Sensitive native detail: service=my-app'),
+        );
+
+        await expect(service.setPassword('acc', 'secret')).rejects.toThrow(
+          'Keychain operation failed',
+        );
+        expect(debugLogger.debug).toHaveBeenCalledWith(
+          'Keychain setPassword encountered an error:',
+          'Sensitive native detail: service=my-app',
+        );
+      });
+
+      it('deletePassword should throw a generic error and log only the message on native failure', async () => {
+        mockKeytar.deletePassword?.mockRejectedValue(
+          new Error('Sensitive native detail: token expired'),
+        );
+
+        await expect(service.deletePassword('acc')).rejects.toThrow(
+          'Keychain operation failed',
+        );
+        expect(debugLogger.debug).toHaveBeenCalledWith(
+          'Keychain deletePassword encountered an error:',
+          'Sensitive native detail: token expired',
+        );
+      });
+
+      it('findCredentials should throw a generic error and log only the message on native failure', async () => {
+        mockKeytar.findCredentials?.mockRejectedValue(
+          new Error('Sensitive native detail: dbus connection refused'),
+        );
+
+        await expect(service.findCredentials()).rejects.toThrow(
+          'Keychain operation failed',
+        );
+        expect(debugLogger.debug).toHaveBeenCalledWith(
+          'Keychain findCredentials encountered an error:',
+          'Sensitive native detail: dbus connection refused',
+        );
+      });
+
+      it('getPassword should sanitize non-Error thrown values', async () => {
+        mockKeytar.getPassword?.mockRejectedValue('raw string error');
+
+        await expect(service.getPassword('acc')).rejects.toThrow(
+          'Keychain operation failed',
+        );
+        expect(debugLogger.debug).toHaveBeenCalledWith(
+          'Keychain getPassword encountered an error:',
+          'raw string error',
+        );
+      });
+    });
   });
 });

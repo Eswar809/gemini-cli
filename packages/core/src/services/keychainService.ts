@@ -47,41 +47,65 @@ export class KeychainService {
 
   /**
    * Retrieves a secret for the given account.
-   * @throws Error if the keychain is unavailable.
+   * @throws Error if the keychain is unavailable or the operation fails.
    */
   async getPassword(account: string): Promise<string | null> {
     const keychain = await this.getKeychainOrThrow();
-    return keychain.getPassword(this.serviceName, account);
+    try {
+      return await keychain.getPassword(this.serviceName, account);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      debugLogger.debug('Keychain getPassword encountered an error:', message);
+      throw new Error('Keychain operation failed');
+    }
   }
 
   /**
    * Securely stores a secret.
-   * @throws Error if the keychain is unavailable.
+   * @throws Error if the keychain is unavailable or the operation fails.
    */
   async setPassword(account: string, value: string): Promise<void> {
     const keychain = await this.getKeychainOrThrow();
-    await keychain.setPassword(this.serviceName, account, value);
+    try {
+      await keychain.setPassword(this.serviceName, account, value);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      debugLogger.debug('Keychain setPassword encountered an error:', message);
+      throw new Error('Keychain operation failed');
+    }
   }
 
   /**
    * Removes a secret from the keychain.
    * @returns true if the secret was deleted, false otherwise.
-   * @throws Error if the keychain is unavailable.
+   * @throws Error if the keychain is unavailable or the operation fails.
    */
   async deletePassword(account: string): Promise<boolean> {
     const keychain = await this.getKeychainOrThrow();
-    return keychain.deletePassword(this.serviceName, account);
+    try {
+      return await keychain.deletePassword(this.serviceName, account);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      debugLogger.debug('Keychain deletePassword encountered an error:', message);
+      throw new Error('Keychain operation failed');
+    }
   }
 
   /**
    * Lists all account/secret pairs stored under this service.
-   * @throws Error if the keychain is unavailable.
+   * @throws Error if the keychain is unavailable or the operation fails.
    */
   async findCredentials(): Promise<
     Array<{ account: string; password: string }>
   > {
     const keychain = await this.getKeychainOrThrow();
-    return keychain.findCredentials(this.serviceName);
+    try {
+      return await keychain.findCredentials(this.serviceName);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      debugLogger.debug('Keychain findCredentials encountered an error:', message);
+      throw new Error('Keychain operation failed');
+    }
   }
 
   private async getKeychainOrThrow(): Promise<Keychain> {
